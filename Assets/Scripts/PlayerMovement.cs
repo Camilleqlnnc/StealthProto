@@ -19,8 +19,9 @@ public class PlayerMovement : MonoBehaviour
     #region Exposed
     [SerializeField] private float _movespeed = 10f;
 
-    SerializeField] private float _turnSpeed = 10f;
-    SerializeField] private float _jumpForce = 10f;
+    [SerializeField] private float _turnSpeed = 10f;
+
+    [SerializeField] private float _jumpForce = 10f;
     #endregion
 
     #region Unity Life Cycle
@@ -39,17 +40,25 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Move();
-
+        OnStateUpdate();
+        
     }
 
     private void FixedUpdate()
     {
-        
-        _direction.y = _rigidbody.velocity.y;
-        _rigidbody.velocity = _direction;
+        if(_isJumping)
+        {
+            _direction.y = _jumpForce;
+            _isJumping = false;
+        }
+        else
+        {
+
+            _direction.y = _rigidbody.velocity.y;
+        }
 
         RotateTowardsCamera();
+        _rigidbody.velocity = _direction;
     }
     #endregion
     //Toutes les fonctions créées par l'équipe
@@ -60,6 +69,10 @@ public class PlayerMovement : MonoBehaviour
         switch (_currentState)
         {
             case PlayerState.IDLE:
+                if (Input.GetButtonDown("Jump"))
+                {
+                    TransitionToState(PlayerState.JUMPING);
+                }
                 break;
             case PlayerState.SNEAKING:
                 break;
@@ -68,6 +81,7 @@ public class PlayerMovement : MonoBehaviour
             case PlayerState.RUNNING:
                 break;
             case PlayerState.JUMPING:
+                _isJumping = true;
                 break;
             case PlayerState.FALLING:
                 break;
@@ -81,14 +95,57 @@ public class PlayerMovement : MonoBehaviour
         switch (_currentState)
         {
             case PlayerState.IDLE:
+                Move();
+
+                if(_direction.magnitude > 0)
+                {
+                    TransitionToState(PlayerState.JOGGING);
+                }
+                else if  (Input.GetButtonDown("Jump"))
+                {
+                    TransitionToState(PlayerState.JUMPING);
+                }
                 break;
             case PlayerState.SNEAKING:
+                Move();
+                if (Input.GetButtonDown("Jump"))
+                {
+                    TransitionToState(PlayerState.JUMPING);
+                }
                 break;
             case PlayerState.JOGGING:
+                Move();
+
+                if(_direction.magnitude == 0)
+                {
+                    TransitionToState(PlayerState.IDLE);
+                }
+                else if (Input.GetButtonDown("Jump"))
+                {
+                    TransitionToState(PlayerState.JUMPING);
+                }
+                else if (_rigidbody.velocity.y > 0)
+                {
+                    TransitionToState(PlayerState.FALLING);
+                }
                 break;
             case PlayerState.RUNNING:
+                if (Input.GetButtonDown("Jump"))
+                {
+                    TransitionToState(PlayerState.JUMPING);
+                }
+                else if (_rigidbody.velocity.y > 0)
+                {
+                    TransitionToState(PlayerState.FALLING);
+                }
                 break;
             case PlayerState.JUMPING:
+                Move();
+
+                if(_rigidbody.velocity.y > 0)
+                {
+                    TransitionToState(PlayerState.FALLING);
+                }
                 break;
             case PlayerState.FALLING:
                 break;
@@ -140,12 +197,16 @@ public class PlayerMovement : MonoBehaviour
         cameraForward.y = 0;
 
         Quaternion lookRotation = Quaternion.LookRotation(cameraForward);
-        Quaternion rotation = Quaternion.RotateTowards(_rigidbody.rotation, lookRotation, 5f * Time.fixedDeltaTime);
+        //pour un mvt plus fluide
+        Quaternion rotation = Quaternion.RotateTowards(_rigidbody.rotation, lookRotation, _turnSpeed * Time.fixedDeltaTime);
         _rigidbody.MoveRotation(rotation);
     }
     private void OnGUI()
     {
-        GUI.Button(new Rect(10, 10, 80, 20), _currentState.ToString());
+        if (GUI.Button(new Rect(10, 10, 80, 20), _currentState.ToString()))
+        {
+            TransitionToState(PlayerState.IDLE);
+        }
     }
     #endregion
 
@@ -155,5 +216,6 @@ public class PlayerMovement : MonoBehaviour
     private Rigidbody _rigidbody;
     private Transform _cameraTransform;
     private PlayerState _currentState;
+    private bool _isJumping = false;
     #endregion
 }
